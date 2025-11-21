@@ -6,7 +6,6 @@ from dt_computer_vision.ground_projection import GroundProjector
 from dt_computer_vision.ground_projection.types import GroundPoint
 
 
-
 def get_steer_matrix_left_lane_markings(shape: Tuple[int, int]) -> np.ndarray:
     """
     Args:
@@ -30,7 +29,7 @@ def get_steer_matrix_left_lane_markings(shape: Tuple[int, int]) -> np.ndarray:
     if max_val != 0:
         steer_unit /= max_val
 
-    steer_matrix_left_lane[:, :width] = 1 # CHANGE ME
+    steer_matrix_left_lane[:, :width] = 1.0 - steer_unit
 
     return steer_matrix_left_lane
 
@@ -59,12 +58,14 @@ def get_steer_matrix_right_lane_markings(shape: Tuple[int, int]) -> np.ndarray:
     if max_val != 0:
         steer_unit /= max_val
 
-    steer_matrix_right_lane[:, width:] = 1 # CHANGE ME
+    steer_matrix_right_lane[:, width:] = 1.0 - steer_unit
 
     return steer_matrix_right_lane
 
 
-def detect_lane_markings(image: np.ndarray, projector: GroundProjector) -> Tuple[np.ndarray, np.ndarray]:
+def detect_lane_markings(
+    image: np.ndarray, projector: GroundProjector
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Args:
         image: An image from the robot's camera in the BGR color space (numpy.ndarray)
@@ -73,12 +74,19 @@ def detect_lane_markings(image: np.ndarray, projector: GroundProjector) -> Tuple
         right_masked_img:  Masked image for the solid-white line (numpy.ndarray)
     """
 
-    sigma = 8  # CHANGE ME - Gaussian blur sigma
-    threshold = 10  # CHANGE ME - minimum threshold for gradiant magnitude
-    white_lower_hsv = np.array([0, 0, 0])  # CHANGE ME - color thresholds
-    white_upper_hsv = np.array([179, 255, 255])  # CHANGE ME
-    yellow_lower_hsv = np.array([0, 0, 0])  # CHANGE ME
-    yellow_upper_hsv = np.array([179, 255, 255])  # CHANGE ME
+    sigma = 2  # CHANGE ME - Gaussian blur sigma
+    threshold = 40  # CHANGE ME - minimum threshold for gradiant magnitude
+    white_lower_hsv = np.array([0, 5, 60])  # CHANGE ME
+    white_upper_hsv = np.array([230, 25, 100])  # CHANGE ME
+    yellow_lower_hsv = np.array([20, 25, 30])  # CHANGE ME
+    yellow_upper_hsv = np.array([80, 120, 100])  # CHANGE ME
+
+    scale_factors = np.array([179 / 255, 255 / 100, 255 / 100])
+
+    white_lower_hsv = white_lower_hsv * scale_factors
+    white_upper_hsv = white_upper_hsv * scale_factors
+    yellow_lower_hsv = yellow_lower_hsv * scale_factors
+    yellow_upper_hsv = yellow_upper_hsv * scale_factors
 
     h, w, _ = image.shape
 
@@ -98,7 +106,9 @@ def detect_lane_markings(image: np.ndarray, projector: GroundProjector) -> Tuple
         horizon = far_away_point_image.as_integers()[0]
 
     mask_ground = np.zeros((h, w), dtype=np.uint8)
-    mask_ground[int(h - horizon + 50) :, :] = 1 # we add a small buffer to cut the entire horizon
+    mask_ground[int(h - horizon + 50) :, :] = (
+        1  # we add a small buffer to cut the entire horizon
+    )
 
     # Smooth the image using a Gaussian kernel
     img_gaussian_filter = cv2.GaussianBlur(imggray, (0, 0), sigma)
@@ -124,7 +134,21 @@ def detect_lane_markings(image: np.ndarray, projector: GroundProjector) -> Tuple
     mask_sobelx_neg = sobelx < 0
     mask_sobely_neg = sobely < 0
 
-    mask_left_edge = mask_ground * mask_left * mask_mag * mask_sobelx_neg * mask_sobely_neg * mask_yellow
-    mask_right_edge = mask_ground * mask_right * mask_mag * mask_sobelx_pos * mask_sobely_neg * mask_white
+    mask_left_edge = (
+        mask_ground
+        * mask_left
+        * mask_mag
+        * mask_sobelx_neg
+        * mask_sobely_neg
+        * mask_yellow
+    )
+    mask_right_edge = (
+        mask_ground
+        * mask_right
+        * mask_mag
+        * mask_sobelx_pos
+        * mask_sobely_neg
+        * mask_white
+    )
 
     return mask_left_edge, mask_right_edge

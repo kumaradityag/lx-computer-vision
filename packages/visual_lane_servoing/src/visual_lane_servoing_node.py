@@ -19,8 +19,10 @@ from std_msgs.msg import String
 
 from visual_lane_servoing.include import visual_servoing_solution
 from duckietown.dtros import DTROS, NodeType, TopicType
-from duckietown.utils.image.ros import compressed_imgmsg_to_rgb, rgb_to_compressed_imgmsg
-
+from duckietown.utils.image.ros import (
+    compressed_imgmsg_to_rgb,
+    rgb_to_compressed_imgmsg,
+)
 
 
 class LaneServoingNode(DTROS):
@@ -39,7 +41,9 @@ class LaneServoingNode(DTROS):
 
     def __init__(self, node_name):
         # Initialize the DTROS parent class
-        super(LaneServoingNode, self).__init__(node_name=node_name, node_type=NodeType.LOCALIZATION)
+        super(LaneServoingNode, self).__init__(
+            node_name=node_name, node_type=NodeType.LOCALIZATION
+        )
         self.loginfo("Initializing...")
         # get the name of the robot
         self.veh = rospy.get_namespace().strip("/")
@@ -48,7 +52,6 @@ class LaneServoingNode(DTROS):
 
         # The following are used for scaling
         self.steer_max = -1
-
 
         self.VLS_ACTION = None
         self.VLS_STOPPED = True
@@ -75,7 +78,9 @@ class LaneServoingNode(DTROS):
         self.jpeg = TurboJPEG()
 
         # select the current activity
-        rospy.Subscriber(f"/{self.veh}/vls_node/action", String, self.cb_action, queue_size=1)
+        rospy.Subscriber(
+            f"/{self.veh}/vls_node/action", String, self.cb_action, queue_size=1
+        )
 
         # Command publisher
         car_cmd_topic = f"/{self.veh}/joy_mapper_node/car_cmd"
@@ -84,11 +89,15 @@ class LaneServoingNode(DTROS):
         )
 
         self._lt_mask_pub = rospy.Publisher(
-            f"/{self.veh}/visual_control/left_mask/image/compressed", CompressedImage, queue_size=1
+            f"/{self.veh}/visual_control/left_mask/image/compressed",
+            CompressedImage,
+            queue_size=1,
         )
 
         self._rt_mask_pub = rospy.Publisher(
-            f"/{self.veh}/visual_control/right_mask/image/compressed", CompressedImage, queue_size=1
+            f"/{self.veh}/visual_control/right_mask/image/compressed",
+            CompressedImage,
+            queue_size=1,
         )
 
         # Get the steering gain (omega_max) from the calibration file
@@ -96,11 +105,12 @@ class LaneServoingNode(DTROS):
         kinematics_calib = self.read_params_from_calibration_file()
         self.omega_max = kinematics_calib.get("omega_max", 2.0)
 
-
         self.loginfo("Initialized!")
 
     def cb_info(self, msg):
-        self.loginfo("Camera info message received. Unsubscribing from camera_info topic.")
+        self.loginfo(
+            "Camera info message received. Unsubscribing from camera_info topic."
+        )
         try:
             self.sub_camera_info.shutdown()
         except BaseException:
@@ -122,7 +132,12 @@ class LaneServoingNode(DTROS):
             self.camera_model.K, self.camera_model.D, (W, H), alpha=0.0
         )
         self.mapx, self.mapy = cv2.initUndistortRectifyMap(
-            self.camera_model.K, self.camera_model.D, None, rect_camera_K, (W, H), cv2.CV_32FC1
+            self.camera_model.K,
+            self.camera_model.D,
+            None,
+            rect_camera_K,
+            (W, H),
+            cv2.CV_32FC1,
         )
 
     def cb_action(self, msg):
@@ -187,8 +202,9 @@ class LaneServoingNode(DTROS):
         height_original, width_original = image.shape[0:2]
         img_size = image.shape[0:2]
         if img_size[0] != width_original or img_size[1] != height_original:
-            image = cv2.resize(image, tuple(reversed(img_size)), interpolation=cv2.INTER_NEAREST)
-
+            image = cv2.resize(
+                image, tuple(reversed(img_size)), interpolation=cv2.INTER_NEAREST
+            )
 
         if self.is_shutdown:
             self.publish_command([0, 0])
@@ -196,23 +212,41 @@ class LaneServoingNode(DTROS):
 
         shape = image.shape[0:2]
 
-        steer_matrix_left_lm = visual_servoing_solution.get_steer_matrix_left_lane_markings(shape)
-        steer_matrix_right_lm = visual_servoing_solution.get_steer_matrix_right_lane_markings(shape)
+        steer_matrix_left_lm = (
+            visual_servoing_solution.get_steer_matrix_left_lane_markings(shape)
+        )
+        steer_matrix_right_lm = (
+            visual_servoing_solution.get_steer_matrix_right_lane_markings(shape)
+        )
 
         # Call the user-defined function to get the masks for the left
         # and right lane markings
-        (lt_mask, rt_mask) = visual_servoing_solution.detect_lane_markings(image, self.projector)
+        (lt_mask, rt_mask) = visual_servoing_solution.detect_lane_markings(
+            image, self.projector
+        )
 
         # Publish these out for visualization
         lt_mask_viz = cv2.addWeighted(
-            cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 0.1, lt_mask.astype(np.uint8), 0.8, 0
+            cv2.cvtColor(image, cv2.COLOR_BGR2GRAY),
+            0.1,
+            lt_mask.astype(np.uint8),
+            0.8,
+            0,
         )
         rt_mask_viz = cv2.addWeighted(
-            cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 0.1, rt_mask.astype(np.uint8), 0.8, 0
+            cv2.cvtColor(image, cv2.COLOR_BGR2GRAY),
+            0.1,
+            rt_mask.astype(np.uint8),
+            0.8,
+            0,
         )
 
-        lt_mask_viz = rgb_to_compressed_imgmsg(cv2.cvtColor(lt_mask_viz, cv2.COLOR_GRAY2RGB), "jpeg")
-        rt_mask_viz = rgb_to_compressed_imgmsg(cv2.cvtColor(rt_mask_viz, cv2.COLOR_GRAY2RGB), "jpeg")
+        lt_mask_viz = rgb_to_compressed_imgmsg(
+            cv2.cvtColor(lt_mask_viz, cv2.COLOR_GRAY2RGB), "jpeg"
+        )
+        rt_mask_viz = rgb_to_compressed_imgmsg(
+            cv2.cvtColor(rt_mask_viz, cv2.COLOR_GRAY2RGB), "jpeg"
+        )
 
         self._lt_mask_pub.publish(lt_mask_viz)
         self._rt_mask_pub.publish(rt_mask_viz)
@@ -234,10 +268,14 @@ class LaneServoingNode(DTROS):
             self.logerr("Not Calibrated!")
             return
 
-        steer = float(np.sum(lt_mask * steer_matrix_left_lm)) + float(np.sum(rt_mask * steer_matrix_right_lm))
+        steer = float(np.sum(lt_mask * steer_matrix_left_lm)) + float(
+            np.sum(rt_mask * steer_matrix_right_lm)
+        )
 
         # now rescale from 0 to 1
-        steer_scaled = np.sign(steer) * rescale(min(np.abs(steer), self.steer_max), 0, self.steer_max)
+        steer_scaled = np.sign(steer) * rescale(
+            min(np.abs(steer), self.steer_max), 0, self.steer_max
+        )
 
         u = [self.v_0, steer_scaled * self.omega_max]
         self.publish_command(u)
@@ -300,7 +338,9 @@ class LaneServoingNode(DTROS):
                 try:
                     return yaml.load(in_file, Loader=yaml.FullLoader)
                 except yaml.YAMLError as exc:
-                    self.logfatal("YAML syntax error. File: %s fname. Exc: %s" % (fname, exc))
+                    self.logfatal(
+                        "YAML syntax error. File: %s fname. Exc: %s" % (fname, exc)
+                    )
                     return None
 
         # Check file existence
@@ -309,7 +349,9 @@ class LaneServoingNode(DTROS):
         # Use the default values from the config folder if a robot-specific file does not exist.
         if not os.path.isfile(fname):
             fname = cali_file_folder + "default.yaml"
-            self.logwarn("Kinematic calibration %s not found! Using default instead." % fname)
+            self.logwarn(
+                "Kinematic calibration %s not found! Using default instead." % fname
+            )
             return readFile(fname)
         else:
             return readFile(fname)

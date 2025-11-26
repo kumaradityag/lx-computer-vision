@@ -29,7 +29,7 @@ def get_steer_matrix_left_lane_markings(shape: Tuple[int, int]) -> np.ndarray:
     if max_val != 0:
         steer_unit /= max_val
 
-    steer_matrix_left_lane[:, :width] = 1.0 - steer_unit
+    steer_matrix_left_lane[:, :width] = -5 * steer_unit
 
     return steer_matrix_left_lane
 
@@ -58,7 +58,7 @@ def get_steer_matrix_right_lane_markings(shape: Tuple[int, int]) -> np.ndarray:
     if max_val != 0:
         steer_unit /= max_val
 
-    steer_matrix_right_lane[:, width:] = 1.0 - steer_unit
+    steer_matrix_right_lane[:, width:] = steer_unit
 
     return steer_matrix_right_lane
 
@@ -74,19 +74,12 @@ def detect_lane_markings(
         right_masked_img:  Masked image for the solid-white line (numpy.ndarray)
     """
 
-    sigma = 2  # CHANGE ME - Gaussian blur sigma
-    threshold = 40  # CHANGE ME - minimum threshold for gradiant magnitude
-    white_lower_hsv = np.array([0, 5, 60])  # CHANGE ME
-    white_upper_hsv = np.array([230, 25, 100])  # CHANGE ME
-    yellow_lower_hsv = np.array([20, 25, 30])  # CHANGE ME
-    yellow_upper_hsv = np.array([80, 120, 100])  # CHANGE ME
-
-    scale_factors = np.array([179 / 255, 255 / 100, 255 / 100])
-
-    white_lower_hsv = white_lower_hsv * scale_factors
-    white_upper_hsv = white_upper_hsv * scale_factors
-    yellow_lower_hsv = yellow_lower_hsv * scale_factors
-    yellow_upper_hsv = yellow_upper_hsv * scale_factors
+    sigma = 8  # CHANGE ME - Gaussian blur sigma
+    threshold = 10  # CHANGE ME - minimum threshold for gradiant magnitude
+    white_lower_hsv = np.array([0, 0, 150])  # CHANGE ME - color thresholds
+    white_upper_hsv = np.array([179, 120, 255])  # CHANGE ME
+    yellow_lower_hsv = np.array([20, 80, 60])  # CHANGE ME
+    yellow_upper_hsv = np.array([50, 255, 255])  # CHANGE ME
 
     h, w, _ = image.shape
 
